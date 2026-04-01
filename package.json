@@ -4,8 +4,8 @@
   "description": "BUSINESS COPILOT - Marketing Avtomatlashtirish Platformasi Backend",
   "main": "app.js",
   "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js"
+    "start": "nodemon server",
+    "dev": "node server"
   },
   "author": "Samandar Masatov",
   "license": "ISC",
@@ -33,6 +33,7 @@
     "node-cron": "^4.2.1",
     "nodemon": "^3.1.9",
     "numeral": "^2.0.6",
+    "openai": "^6.33.0",
     "pdfmake": "^0.2.20",
     "qrcode": "^1.5.4",
     "sharp": "^0.34.3",

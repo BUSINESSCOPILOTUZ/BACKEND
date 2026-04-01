@@ -1,5 +1,23 @@
 const mongoose = require("mongoose");
 
+const ScheduledPostSchema = new mongoose.Schema({
+  day: { type: String, default: "" },
+  date: { type: String, required: true },
+  time: { type: String, required: true },
+  title: { type: String, default: "" },
+  type: { type: String, default: "matn" },
+  content: { type: String, required: true },
+  hashtags: [{ type: String }],
+  status: {
+    type: String,
+    enum: ["pending", "scheduled", "sent", "failed"],
+    default: "pending",
+  },
+  telegramMessageId: { type: Number, default: null },
+  sentAt: { type: Date, default: null },
+  error: { type: String, default: null },
+});
+
 const AssetSchema = new mongoose.Schema({
   type: {
     type: String,
@@ -24,6 +42,11 @@ const ContentPlanSchema = new mongoose.Schema(
       required: [true, "Mavzuni kiritish shart"],
     },
     generatedPlan: {
+      type: String,
+      default: "",
+    },
+    scheduledPosts: [ScheduledPostSchema],
+    telegramChannelId: {
       type: String,
       default: "",
     },

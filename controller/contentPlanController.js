@@ -1,5 +1,9 @@
 const ContentPlan = require("../models/ContentPlan");
 const { generateContentPlan } = require("../services/aiService");
+const {
+  sendToChannel,
+  formatPostForTelegram,
+} = require("../services/telegramService");
 
 /**
  * Barcha kontent rejalarni olish
@@ -9,7 +13,7 @@ const getContentPlans = async (req, res) => {
   try {
     const { status, page = 1, limit = 50 } = req.query;
 
-    const filter = { createdBy: req.user._id };
+    const filter = {};
 
     if (status) {
       filter.status = status;
@@ -50,10 +54,7 @@ const getContentPlans = async (req, res) => {
  */
 const getContentPlanById = async (req, res) => {
   try {
-    const plan = await ContentPlan.findOne({
-      _id: req.params.id,
-      createdBy: req.user._id,
-    });
+    const plan = await ContentPlan.findById(req.params.id);
 
     if (!plan) {
       return res.status(404).json({
@@ -89,16 +90,48 @@ const generatePlan = async (req, res) => {
       });
     }
 
-    // AI orqali reja generatsiya qilish
-    const generatedPlan = await generateContentPlan(topic);
+    // AI orqali reja generatsiya qilish (JSON format)
+    const generatedPlanRaw = await generateContentPlan(topic);
+
+    // JSON parse qilish
+    let parsedPlan;
+    try {
+      parsedPlan = JSON.parse(generatedPlanRaw);
+    } catch {
+      // Agar JSON parse bo'lmasa, eski formatda saqlash
+      const plan = await ContentPlan.create({
+        title: "AI Reja: " + topic.substring(0, 50),
+        rawText: topic,
+        generatedPlan: generatedPlanRaw,
+        scheduledPosts: [],
+        status: "pending",
+      });
+      return res.status(201).json({
+        status: true,
+        message: "Kontent reja muvaffaqiyatli yaratildi",
+        data: plan,
+      });
+    }
+
+    // Strukturali postlarni yaratish
+    const scheduledPosts = (parsedPlan.posts || []).map((post) => ({
+      day: post.day || "",
+      date: post.date || "",
+      time: post.time || "10:00",
+      title: post.title || "",
+      type: post.type || "matn",
+      content: post.content || "",
+      hashtags: post.hashtags || [],
+      status: "pending",
+    }));
 
     // Bazaga saqlash
     const plan = await ContentPlan.create({
       title: "AI Reja: " + topic.substring(0, 50),
       rawText: topic,
-      generatedPlan,
+      generatedPlan: generatedPlanRaw,
+      scheduledPosts,
       status: "pending",
-      createdBy: req.user._id,
     });
 
     res.status(201).json({
@@ -122,8 +155,8 @@ const updateContentPlan = async (req, res) => {
   try {
     const { title, generatedPlan, status } = req.body;
 
-    const plan = await ContentPlan.findOneAndUpdate(
-      { _id: req.params.id, createdBy: req.user._id },
+    const plan = await ContentPlan.findByIdAndUpdate(
+      req.params.id,
       { title, generatedPlan, status },
       { new: true, runValidators: true },
     );
@@ -154,10 +187,7 @@ const updateContentPlan = async (req, res) => {
  */
 const deleteContentPlan = async (req, res) => {
   try {
-    const plan = await ContentPlan.findOneAndDelete({
-      _id: req.params.id,
-      createdBy: req.user._id,
-    });
+    const plan = await ContentPlan.findByIdAndDelete(req.params.id);
 
     if (!plan) {
       return res.status(404).json({
@@ -179,16 +209,14 @@ const deleteContentPlan = async (req, res) => {
 };
 
 /**
- * Kontent rejani tasdiqlash
+ * Kontent rejani tasdiqlash va Telegram kanalga rejalashtirish
  * PUT /api/content-plans/:id/approve
  */
 const approveContentPlan = async (req, res) => {
   try {
-    const plan = await ContentPlan.findOneAndUpdate(
-      { _id: req.params.id, createdBy: req.user._id },
-      { status: "approved" },
-      { new: true },
-    );
+    const { telegramChannelId, scheduledPosts: updatedPosts } = req.body;
+
+    const plan = await ContentPlan.findById(req.params.id);
 
     if (!plan) {
       return res.status(404).json({
@@ -197,9 +225,41 @@ const approveContentPlan = async (req, res) => {
       });
     }
 
+    // Statusni approved ga o'zgartirish
+    plan.status = "approved";
+
+    // Telegram kanal ID saqlash
+    if (telegramChannelId) {
+      plan.telegramChannelId = telegramChannelId;
+    }
+
+    // Frontenddan kelgan yangilangan sana/vaqtlarni qo'llash
+    if (updatedPosts && updatedPosts.length > 0) {
+      for (let i = 0; i < plan.scheduledPosts.length; i++) {
+        if (updatedPosts[i]) {
+          plan.scheduledPosts[i].date =
+            updatedPosts[i].date || plan.scheduledPosts[i].date;
+          plan.scheduledPosts[i].time =
+            updatedPosts[i].time || plan.scheduledPosts[i].time;
+        }
+        if (plan.scheduledPosts[i].status === "pending") {
+          plan.scheduledPosts[i].status = "scheduled";
+        }
+      }
+    } else {
+      // Postlarni scheduled statusiga o'tkazish
+      for (const post of plan.scheduledPosts) {
+        if (post.status === "pending") {
+          post.status = "scheduled";
+        }
+      }
+    }
+
+    await plan.save();
+
     res.status(200).json({
       status: true,
-      message: "Kontent reja tasdiqlandi",
+      message: `Kontent reja tasdiqlandi. ${plan.scheduledPosts.length} ta post rejalashtirildi.`,
       data: plan,
     });
   } catch (error) {

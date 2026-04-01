@@ -8,6 +8,10 @@ const cors = require("cors");
 const databaseConnection = require("./config/database");
 const errorHandler = require("./middleware/errorHandler");
 const { initAI } = require("./services/aiService");
+const {
+  initTelegramBot,
+  startScheduler,
+} = require("./services/telegramService");
 
 // Route imports
 const authRoutes = require("./router/authRoutes");
@@ -17,6 +21,7 @@ const contentPlanRoutes = require("./router/contentPlanRoutes");
 const analyticsRoutes = require("./router/analyticsRoutes");
 const automationRoutes = require("./router/automationRoutes");
 const businessRoutes = require("./router/businessRoutes");
+const aiRoutes = require("./router/aiRoutes");
 
 // Middlewares
 app.use(bodyParser.json({ limit: "10mb" }));
@@ -29,9 +34,23 @@ app.use("/archive", express.static(path.join(__dirname, "public", "archive")));
 app.use("/uploads", express.static(path.join(__dirname, "public", "uploads")));
 
 // CORS sozlamalari
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://localhost:5174",
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "*",
+    origin: function (origin, callback) {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, true); // Development: allow all origins
+    },
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -41,6 +60,10 @@ app.use(
 // Database va AI ulanish
 databaseConnection();
 initAI();
+
+// Telegram Bot va Scheduler ishga tushirish
+initTelegramBot();
+startScheduler();
 
 // Health check
 app.get("/api/health", (req, res) => {
@@ -60,6 +83,7 @@ app.use("/api/content-plans", contentPlanRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/automation", automationRoutes);
 app.use("/api/business", businessRoutes);
+app.use("/api/ai", aiRoutes);
 
 // Error Handler Middleware
 app.use(errorHandler);
@@ -75,10 +99,8 @@ const server = app.listen(PORT, () => {
 
 // 404 - Route topilmadi
 app.all("*", async (req, res) =>
-  res
-    .status(404)
-    .json({
-      status: false,
-      message: `Router mavjud emas: ${req.method} ${req.originalUrl}`,
-    }),
+  res.status(404).json({
+    status: false,
+    message: `Router mavjud emas: ${req.method} ${req.originalUrl}`,
+  }),
 );

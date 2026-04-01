@@ -1,52 +1,72 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const OpenAI = require("openai");
 
-let genAI = null;
+let openai = null;
 
 /**
- * Gemini AI ni ishga tushirish
+ * OpenAI ni ishga tushirish
  */
 const initAI = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    console.warn("GEMINI_API_KEY topilmadi. AI xizmatlari ishlamaydi.");
+    console.warn("OPENAI_API_KEY topilmadi. AI xizmatlari ishlamaydi.");
     return null;
   }
-  genAI = new GoogleGenerativeAI(apiKey);
-  return genAI;
+  openai = new OpenAI({ apiKey });
+  return openai;
 };
 
 /**
  * Kontent reja generatsiya qilish
  */
 const generateContentPlan = async (topic) => {
-  if (!genAI) initAI();
-  if (!genAI)
-    throw new Error("AI xizmati sozlanmagan. GEMINI_API_KEY ni tekshiring.");
+  if (!openai) initAI();
+  if (!openai)
+    throw new Error("AI xizmati sozlanmagan. OPENAI_API_KEY ni tekshiring.");
 
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const today = new Date();
+  const startDate = new Date(today);
+  startDate.setDate(today.getDate() + 1); // Ertadan boshlab
 
-  const prompt = `Siz professional marketing mutaxassisiz. Quyidagi mavzu uchun O'zbek tilida 1 haftalik ijtimoiy tarmoqlar (Telegram, Instagram) uchun kontent reja tuzing. Har bir kun uchun:
-1. Post mavzusi
-2. Post turi (rasm, video, reels, story)
-3. Vaqti
-4. Teglar (hashtag)
+  const prompt = `Siz professional marketing mutaxassisiz. Quyidagi mavzu uchun O'zbek tilida 1 haftalik Telegram kanal uchun kontent reja tuzing.
 
-Faqat rejaning o'zini qaytaring: ${topic}`;
+Boshlanish sanasi: ${startDate.toISOString().split("T")[0]}
 
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  return response.text();
+Har bir kun uchun batafsil post tayyorlang. Javobni FAQAT quyidagi JSON formatida qaytaring, boshqa hech narsa yozmang:
+
+{
+  "posts": [
+    {
+      "day": "Dushanba",
+      "date": "2026-04-02",
+      "time": "10:00",
+      "title": "Post mavzusi",
+      "type": "rasm",
+      "content": "Telegram kanalga chiqariladigan to'liq post matni (emoji bilan, chiroyli formatlangan, 3-5 paragraf). Batafsil va qiziqarli bo'lsin.",
+      "hashtags": ["#hashtag1", "#hashtag2"]
+    }
+  ]
+}
+
+MUHIM: 7 kun uchun 7 ta post bo'lsin. "content" maydoni Telegram kanalga to'g'ridan-to'g'ri chiqariladigan tayyor post bo'lishi kerak — chiroyli, batafsil, emoji bilan bezatilgan.
+"type" qiymatlari: "rasm", "video", "reels", "story", "matn" dan biri.
+
+Mavzu: ${topic}`;
+
+  const result = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" },
+  });
+  return result.choices[0].message.content;
 };
 
 /**
  * Biznes-reja generatsiya qilish
  */
 const generateBizPlan = async (formData) => {
-  if (!genAI) initAI();
-  if (!genAI)
-    throw new Error("AI xizmati sozlanmagan. GEMINI_API_KEY ni tekshiring.");
-
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  if (!openai) initAI();
+  if (!openai)
+    throw new Error("AI xizmati sozlanmagan. OPENAI_API_KEY ni tekshiring.");
 
   const prompt = `Professional biznes-reja tuzib bering. O'zbek tilida javob bering.
 Soha: ${formData.industry}
@@ -66,20 +86,20 @@ Iltimos, ushbu ma'lumotlar asosida O'zbekiston bozori uchun mukammal biznes-reja
 6. Xavflar va yechimlari
 7. Bosqichma-bosqich reja`;
 
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  return response.text();
+  const result = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+  });
+  return result.choices[0].message.content;
 };
 
 /**
  * Biznes chat - suhbat orqali maslahat berish
  */
 const bizChat = async (chatHistory, userMessage) => {
-  if (!genAI) initAI();
-  if (!genAI)
-    throw new Error("AI xizmati sozlanmagan. GEMINI_API_KEY ni tekshiring.");
-
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  if (!openai) initAI();
+  if (!openai)
+    throw new Error("AI xizmati sozlanmagan. OPENAI_API_KEY ni tekshiring.");
 
   const systemPrompt = `# SYSTEM PROMPT — BUSINESS COPILOT: Biznes Boshlash (AI Moliyaviy Maslahatchi)
 
@@ -94,38 +114,29 @@ Sen foydalanuvchi bilan suhbat orqali zarur ma'lumotlarni bosqichma-bosqich yig'
 3. Raqamlarni formatlashda vergul ishlat (masalan: 10,000,000 so'm).
 4. Har bir javobda foydalanuvchini keyingi bosqichga yo'naltir.`;
 
-  const chat = model.startChat({
-    history: [
-      { role: "user", parts: [{ text: systemPrompt }] },
-      {
-        role: "model",
-        parts: [
-          {
-            text: "Tushundim. Men O'zbek tilidagi professional AI moliyaviy maslahatchi sifatida yordam berishga tayyorman.",
-          },
-        ],
-      },
-      ...chatHistory.map((msg) => ({
-        role: msg.role === "model" ? "model" : "user",
-        parts: [{ text: msg.text }],
-      })),
-    ],
-  });
+  const messages = [
+    { role: "system", content: systemPrompt },
+    ...chatHistory.map((msg) => ({
+      role: msg.role === "model" ? "assistant" : "user",
+      content: msg.text,
+    })),
+    { role: "user", content: userMessage },
+  ];
 
-  const result = await chat.sendMessage(userMessage);
-  const response = await result.response;
-  return response.text();
+  const result = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages,
+  });
+  return result.choices[0].message.content;
 };
 
 /**
  * Sayt konsepti generatsiya qilish
  */
 const generateWebsiteConcept = async (description) => {
-  if (!genAI) initAI();
-  if (!genAI)
-    throw new Error("AI xizmati sozlanmagan. GEMINI_API_KEY ni tekshiring.");
-
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  if (!openai) initAI();
+  if (!openai)
+    throw new Error("AI xizmati sozlanmagan. OPENAI_API_KEY ni tekshiring.");
 
   const prompt = `Siz professional veb-dizayner va dasturchisiz. Foydalanuvchi uchun quyidagi tavsif asosida veb-sayt strukturasi, dizayn konsepti, kerakli sahifalar ro'yxati va texnologik stekni (tech stack) tavsiya qiling. Javobni O'zbek tilida, chiroyli formatlangan holda yozing.
 
@@ -139,9 +150,61 @@ Quyidagilarni kiriting:
 5. SEO tavsiyalari
 6. Mobil versiya rejasi`;
 
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  return response.text();
+  const result = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+  });
+  return result.choices[0].message.content;
+};
+
+/**
+ * Reklama kreativ yaratish (Telegram/Instagram Ads)
+ */
+const generateAds = async (description, platform) => {
+  if (!openai) initAI();
+  if (!openai)
+    throw new Error("AI xizmati sozlanmagan. OPENAI_API_KEY ni tekshiring.");
+
+  const platformName = platform === "tg" ? "Telegram Ads" : "Instagram Ads";
+  const prompt = `Siz professional reklama mutaxassisisiz. Foydalanuvchi uchun ${platformName} uchun reklama kampaniyasi elementlarini yarating.
+
+Mahsulot/Xizmat tavsifi: ${description}
+
+Javobni quyidagi JSON formatida qaytaring (faqat JSON):
+{
+  "creative": "Reklama uchun vizual yoki matnli kreativ g'oyasi",
+  "hooks": ["Hook 1", "Hook 2", "Hook 3"],
+  "ctas": ["CTA 1", "CTA 2", "CTA 3"]
+}
+
+Javob O'zbek tilida bo'lishi shart.`;
+
+  const result = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+  });
+  return result.choices[0].message.content;
+};
+
+/**
+ * Bozor tahlili
+ */
+const generateMarketAnalysis = async (businessIdea) => {
+  if (!openai) initAI();
+  if (!openai)
+    throw new Error("AI xizmati sozlanmagan. OPENAI_API_KEY ni tekshiring.");
+
+  const prompt = `Siz professional bozor tahlilchisisiz. Quyidagi biznes g'oyasi uchun O'zbekiston bozorida raqobatchilar tahlili, bozor hajmi va imkoniyatlar haqida batafsil ma'lumot bering.
+
+Biznes g'oyasi: ${businessIdea}
+
+Javobni O'zbek tilida, chiroyli formatlangan (Markdown) holda yozing.`;
+
+  const result = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+  });
+  return result.choices[0].message.content;
 };
 
 module.exports = {
@@ -150,4 +213,6 @@ module.exports = {
   generateBizPlan,
   bizChat,
   generateWebsiteConcept,
+  generateAds,
+  generateMarketAnalysis,
 };

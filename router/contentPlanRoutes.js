@@ -7,10 +7,8 @@ const {
   deleteContentPlan,
   approveContentPlan,
 } = require("../controller/contentPlanController");
-const { authMiddleware } = require("../middleware/auth");
 
-// Barcha routelar auth talab qiladi
-router.use(authMiddleware);
+// Barcha routelar PUBLIC (auth shart emas — frontend to'g'ridan-to'g'ri chaqiradi)
 
 // AI orqali kontent reja generatsiya qilish
 router.post("/generate", generatePlan);
