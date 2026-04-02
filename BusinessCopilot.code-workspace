@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"name": "BACKEND",
+			"path": "."
+		},
+		{
+			"name": "ADMIN",
+			"path": "../ADMIN"
+		},
+		{
+			"name": "FRONT",
+			"path": "../FRONT"
+		}
+	],
+	"settings": {}
+}

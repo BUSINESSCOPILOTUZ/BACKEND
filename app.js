@@ -22,6 +22,7 @@ const analyticsRoutes = require("./router/analyticsRoutes");
 const automationRoutes = require("./router/automationRoutes");
 const businessRoutes = require("./router/businessRoutes");
 const aiRoutes = require("./router/aiRoutes");
+const botRoutes = require("./router/botRoutes");
 
 // Middlewares
 app.use(bodyParser.json({ limit: "10mb" }));
@@ -87,6 +88,7 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/automation", automationRoutes);
 app.use("/api/business", businessRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/bot", botRoutes);
 
 // Error Handler Middleware
 app.use(errorHandler);
