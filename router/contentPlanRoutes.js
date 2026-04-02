@@ -24,3 +24,7 @@ router.put("/:id", authMiddleware, updateContentPlan);
 router.delete("/:id", authMiddleware, deleteContentPlan);
 
 module.exports = router;
+
+
+
+
