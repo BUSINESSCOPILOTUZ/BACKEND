@@ -8,22 +8,23 @@ const {
   updateProfile,
 } = require("../controller/authController");
 const { authMiddleware } = require("../middleware/auth");
+const { authLimiter } = require("../middleware/rateLimiter");
 
 // ============================================
-// Ochiq route'lar (auth kerak emas)
+// Ochiq route'lar (auth kerak emas) — rate-limited
 // ============================================
 
 // Email + Parol orqali ro'yxatdan o'tish
-router.post("/register", register);
+router.post("/register", authLimiter, register);
 
 // Email + Parol orqali kirish
-router.post("/login", login);
+router.post("/login", authLimiter, login);
 
 // Telefon raqamiga OTP kod yuborish
-router.post("/send-otp", sendOTPHandler);
+router.post("/send-otp", authLimiter, sendOTPHandler);
 
 // OTP kodni tekshirish va tizimga kirish
-router.post("/verify-otp", verifyOTP);
+router.post("/verify-otp", authLimiter, verifyOTP);
 
 // ============================================
 // Himoyalangan route'lar (auth kerak)
