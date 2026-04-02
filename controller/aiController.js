@@ -206,6 +206,62 @@ const marketAnalysisHandler = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/ai/generate-ad-images
+ * Generates DALL-E 3 images for TG or Meta ads.
+ * Body: { description: string, platform: "tg"|"instagram", language?: "uz"|"en"|"ru" }
+ *
+ * Response (TG):   { status: true, data: { platform: "tg",        images: [url, url, url] } }
+ * Response (Meta): { status: true, data: { platform: "instagram", images: [{ url, ratio, label }, ...] } }
+ */
+const generateAdImagesHandler = async (req, res) => {
+  try {
+    const { description, platform, language } = req.body;
+
+    if (!description || !description.trim()) {
+      return res.status(400).json({
+        status: false,
+        message: "Mahsulot tavsifini kiritish shart.",
+      });
+    }
+
+    const {
+      generateTgAdImages,
+      generateMetaAdImages,
+    } = require("../services/aiService");
+
+    if (platform === "tg") {
+      const images = await generateTgAdImages(description, language || "uz");
+      return res.status(200).json({
+        status: true,
+        data: { platform: "tg", images },
+      });
+    }
+
+    // Meta / Instagram
+    const images = await generateMetaAdImages(description, language || "uz");
+    return res.status(200).json({
+      status: true,
+      data: { platform: "instagram", images },
+    });
+  } catch (error) {
+    // Specific handling for OpenAI rate-limit / billing errors
+    const isRateLimit =
+      error?.status === 429 ||
+      error?.code === "rate_limit_exceeded" ||
+      error?.code === "billing_hard_limit_reached" ||
+      error?.code === "insufficient_quota";
+
+    const statusCode = isRateLimit ? 429 : 500;
+    const message = isRateLimit
+      ? "OpenAI API limit yoki balans yetarli emas. Keyinroq urinib ko'ring."
+      : "Rasm yaratishda xatolik: " + error.message;
+
+    console.error("AI Image Generation Error:", error.message);
+    return res.status(statusCode).json({ status: false, message });
+  }
+};
+
 module.exports = {
   generateContent,
   bizChatHandler,
@@ -213,4 +269,5 @@ module.exports = {
   generateWebsiteHandler,
   generateAdsHandler,
   marketAnalysisHandler,
+  generateAdImagesHandler,
 };

@@ -207,6 +207,116 @@ Javobni O'zbek tilida, chiroyli formatlangan (Markdown) holda yozing.`;
   return result.choices[0].message.content;
 };
 
+// ============================================================
+// DALL-E 3 Image Generation
+// ============================================================
+
+/**
+ * Expand a short user description into a detailed DALL-E prompt.
+ * Keeps the prompt concise (&lt;400 chars) to minimise generation time.
+ */
+const buildImagePrompt = (description, platform, language) => {
+  const base = description.trim();
+  const langNote =
+    language === "uz"
+      ? "Any text in the image must be in Latin-Uzbek script."
+      : language === "ru"
+        ? "Any text in the image must be in Russian."
+        : "Any text in the image must be in English.";
+
+  return (
+    `Professional advertising photo for ${platform === "tg" ? "Telegram Ads" : "Meta/Instagram Ads"}. ` +
+    `Subject: ${base}. ` +
+    `Style: clean, modern, commercially appealing. ` +
+    `High resolution, studio-quality lighting, vibrant but natural colours. ` +
+    `${langNote} ` +
+    `No watermarks, no logos except the brand's own.`
+  );
+};
+
+/** Size presets keyed by aspect ratio label */
+const DALLE_SIZES = {
+  "16:9": "1792x1024",
+  "9:16": "1024x1792",
+  "1:1": "1024x1024",
+};
+
+/**
+ * Generate a single image with DALL-E 3.
+ * Returns the URL string or null on failure.
+ */
+const generateSingleImage = async (prompt, size) => {
+  if (!openai) initAI();
+  if (!openai)
+    throw new Error("AI xizmati sozlanmagan. OPENAI_API_KEY ni tekshiring.");
+
+  const response = await openai.images.generate({
+    model: "dall-e-3",
+    prompt,
+    n: 1,
+    size,
+    quality: "standard", // 50% cheaper than "hd"
+    style: "natural", // professional look, better first-hit rate
+  });
+  return response.data[0]?.url || null;
+};
+
+/**
+ * Generate images for Telegram Ads.
+ * Returns an array of 3 image URLs, all 16:9 (1792×1024).
+ */
+const generateTgAdImages = async (description, language = "uz") => {
+  const prompt = buildImagePrompt(description, "tg", language);
+  const size = DALLE_SIZES["16:9"];
+
+  // Generate 3 variants sequentially to respect rate limits
+  const urls = [];
+  for (let i = 0; i < 3; i++) {
+    try {
+      const url = await generateSingleImage(
+        `${prompt} Variant ${i + 1} — unique composition.`,
+        size,
+      );
+      if (url) urls.push(url);
+    } catch (err) {
+      console.error(`DALL-E TG image ${i + 1} error:`, err.message);
+      // Push null so frontend knows this slot failed
+      urls.push(null);
+    }
+  }
+  return urls;
+};
+
+/**
+ * Generate images for Meta Ads.
+ * Returns array of 3 objects: { url, ratio, label }
+ * Each in a different aspect ratio: 1:1, 16:9, 9:16.
+ */
+const generateMetaAdImages = async (description, language = "uz") => {
+  const prompt = buildImagePrompt(description, "meta", language);
+
+  const specs = [
+    { ratio: "1:1", label: "Kvadrat (1:1)", size: DALLE_SIZES["1:1"] },
+    { ratio: "16:9", label: "Landshaft (16:9)", size: DALLE_SIZES["16:9"] },
+    { ratio: "9:16", label: "Story (9:16)", size: DALLE_SIZES["9:16"] },
+  ];
+
+  const results = [];
+  for (const spec of specs) {
+    try {
+      const url = await generateSingleImage(
+        `${prompt} Format: ${spec.ratio}.`,
+        spec.size,
+      );
+      results.push({ url, ratio: spec.ratio, label: spec.label });
+    } catch (err) {
+      console.error(`DALL-E Meta ${spec.ratio} error:`, err.message);
+      results.push({ url: null, ratio: spec.ratio, label: spec.label });
+    }
+  }
+  return results;
+};
+
 module.exports = {
   initAI,
   generateContentPlan,
@@ -215,4 +325,6 @@ module.exports = {
   generateWebsiteConcept,
   generateAds,
   generateMarketAnalysis,
+  generateTgAdImages,
+  generateMetaAdImages,
 };

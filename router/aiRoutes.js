@@ -6,6 +6,7 @@ const {
   generateWebsiteHandler,
   generateAdsHandler,
   marketAnalysisHandler,
+  generateAdImagesHandler,
 } = require("../controller/aiController");
 
 // Barcha AI endpointlar PUBLIC (auth shart emas)
@@ -28,5 +29,8 @@ router.post("/generate-ads", generateAdsHandler);
 
 // AI Bozor tahlili
 router.post("/market-analysis", marketAnalysisHandler);
+
+// AI DALL-E 3 rasm yaratish (TG / Meta)
+router.post("/generate-ad-images", generateAdImagesHandler);
 
 module.exports = router;
