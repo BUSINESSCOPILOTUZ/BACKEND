@@ -7,6 +7,7 @@ const mammoth = require("mammoth");
 const BotSettings = require("../models/BotSettings");
 const KnowledgeBaseChunk = require("../models/KnowledgeBaseChunk");
 const CustomerInteraction = require("../models/CustomerInteraction");
+const { encrypt, decrypt } = require("../utils/tokenCrypto");
 
 let openai = null;
 
@@ -177,10 +178,20 @@ const getSettings = async (userId) => {
   if (!settings) {
     settings = await BotSettings.create({ userId });
   }
+  // Decrypt bot token before returning
+  if (settings.botToken) {
+    const obj = settings.toObject ? settings.toObject() : { ...settings };
+    obj.botToken = decrypt(settings.botToken);
+    return obj;
+  }
   return settings;
 };
 
 const updateSettings = async (userId, updates) => {
+  // Encrypt bot token before storing
+  if (updates.botToken) {
+    updates.botToken = encrypt(updates.botToken);
+  }
   return BotSettings.findOneAndUpdate({ userId }, updates, {
     new: true,
     upsert: true,
