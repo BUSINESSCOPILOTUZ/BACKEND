@@ -68,5 +68,6 @@ const ContentPlanSchema = new mongoose.Schema(
 
 ContentPlanSchema.index({ status: 1 });
 ContentPlanSchema.index({ createdAt: -1 });
+ContentPlanSchema.index({ createdBy: 1, createdAt: -1 });
 
 module.exports = mongoose.model("ContentPlan", ContentPlanSchema);

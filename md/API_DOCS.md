@@ -39,7 +39,10 @@ server {
 
 }
 
-
+ssh root@masatov.uz
+sma1636S#shjj1299
+SamandarMasatov
+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
 
 <!-- backend -->
 
@@ -48,16 +51,12 @@ git pull https://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:x-oauth-basic@github.c
 pm2 reload all
 pm2 monit
 
-
 <!-- Front -->
+
 cd ../home/biznes_copilot/FRONT
 git pull https://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:x-oauth-basic@github.com/SamandarMasatov/BUSINESSCOPILOTUZ/FRONT.git
 npm run build
 pm2 monit
-
-
-
-
 
 # BUSINESS COPILOT - Backend API Documentation
 

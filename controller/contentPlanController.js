@@ -13,7 +13,8 @@ const getContentPlans = async (req, res) => {
   try {
     const { status, page = 1, limit = 50 } = req.query;
 
-    const filter = {};
+    // Faqat shu foydalanuvchiga tegishli rejalarni ko'rsatish
+    const filter = { createdBy: req.user._id };
 
     if (status) {
       filter.status = status;
@@ -54,7 +55,10 @@ const getContentPlans = async (req, res) => {
  */
 const getContentPlanById = async (req, res) => {
   try {
-    const plan = await ContentPlan.findById(req.params.id);
+    const plan = await ContentPlan.findOne({
+      _id: req.params.id,
+      createdBy: req.user._id,
+    });
 
     if (!plan) {
       return res.status(404).json({
@@ -105,6 +109,7 @@ const generatePlan = async (req, res) => {
         generatedPlan: generatedPlanRaw,
         scheduledPosts: [],
         status: "pending",
+        createdBy: req.user._id,
       });
       return res.status(201).json({
         status: true,
@@ -132,6 +137,7 @@ const generatePlan = async (req, res) => {
       generatedPlan: generatedPlanRaw,
       scheduledPosts,
       status: "pending",
+      createdBy: req.user._id,
     });
 
     res.status(201).json({
@@ -155,8 +161,9 @@ const updateContentPlan = async (req, res) => {
   try {
     const { title, generatedPlan, status } = req.body;
 
-    const plan = await ContentPlan.findByIdAndUpdate(
-      req.params.id,
+    // Faqat o'z rejasini o'zgartira oladi
+    const plan = await ContentPlan.findOneAndUpdate(
+      { _id: req.params.id, createdBy: req.user._id },
       { title, generatedPlan, status },
       { new: true, runValidators: true },
     );
@@ -187,7 +194,11 @@ const updateContentPlan = async (req, res) => {
  */
 const deleteContentPlan = async (req, res) => {
   try {
-    const plan = await ContentPlan.findByIdAndDelete(req.params.id);
+    // Faqat o'z rejasini o'chira oladi
+    const plan = await ContentPlan.findOneAndDelete({
+      _id: req.params.id,
+      createdBy: req.user._id,
+    });
 
     if (!plan) {
       return res.status(404).json({
@@ -216,7 +227,10 @@ const approveContentPlan = async (req, res) => {
   try {
     const { telegramChannelId, scheduledPosts: updatedPosts } = req.body;
 
-    const plan = await ContentPlan.findById(req.params.id);
+    const plan = await ContentPlan.findOne({
+      _id: req.params.id,
+      createdBy: req.user._id,
+    });
 
     if (!plan) {
       return res.status(404).json({
