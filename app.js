@@ -34,29 +34,39 @@ app.use("/audios", express.static(path.join(__dirname, "public", "audios")));
 app.use("/archive", express.static(path.join(__dirname, "public", "archive")));
 app.use("/uploads", express.static(path.join(__dirname, "public", "uploads")));
 
-// CORS sozlamalari
-// Allow local dev origins plus production frontend and api domains
-const allowedOrigins = [
-  "http://localhost:3000",
-  "http://localhost:5173",
-  "http://localhost:5174",
-  process.env.FRONTEND_URL,
-  "https://business-copilot.masatov.uz",
-  "https://apibusinesscopilot.masatov.uz",
-].filter(Boolean);
-
+// CORS sozlamalari — barcha originlarga ruxsat berilgan
 app.use(
   cors({
-    origin: function (origin, callback) {
-      // Allow requests with no origin (mobile apps, curl, etc.)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(null, true); // Development: allow all origins
-    },
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    origin: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+      "Origin",
+    ],
+    exposedHeaders: ["Content-Range", "X-Content-Range"],
+    credentials: true,
+    maxAge: 86400,
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
+  }),
+);
+
+// Barcha OPTIONS (preflight) so'rovlariga avtomatik javob
+app.options(
+  "*",
+  cors({
+    origin: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+      "Origin",
+    ],
     credentials: true,
   }),
 );
