@@ -5,8 +5,6 @@ const app = express();
 const bodyParser = require("body-parser");
 const path = require("path");
 const cors = require("cors");
-const session = require("express-session");
-const passport = require("passport");
 const databaseConnection = require("./config/database");
 const errorHandler = require("./middleware/errorHandler");
 const { initAI } = require("./services/aiService");
@@ -14,7 +12,6 @@ const {
   initTelegramBot,
   startScheduler,
 } = require("./services/telegramService");
-const { configurePassport } = require("./config/passport");
 
 // Route imports
 const authRoutes = require("./router/authRoutes");
@@ -66,26 +63,6 @@ app.use(
 // Database va AI ulanish
 databaseConnection();
 initAI();
-
-// Passport.js — Google OAuth 2.0 strategiyasini sozlash
-configurePassport();
-
-// Express-session — Passport uchun kerak (session: false bo'lsa ham ichki ishlash uchun)
-app.use(
-  session({
-    secret: process.env.JWT_SECRET || "business-copilot-session-secret",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === "production", // Production da HTTPS kerak
-      maxAge: 24 * 60 * 60 * 1000, // 24 soat
-    },
-  }),
-);
-
-// Passport middleware'larini ishga tushirish
-app.use(passport.initialize());
-app.use(passport.session());
 
 // Telegram Bot va Scheduler ishga tushirish
 initTelegramBot();
