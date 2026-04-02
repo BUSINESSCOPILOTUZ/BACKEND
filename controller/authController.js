@@ -3,7 +3,7 @@ const User = require("../models/User");
 const { secret_key, time } = require("../config/config");
 
 /**
- * Google orqali kirish / Ro'yxatdan o'tish
+ * Google orqali kirish / Ro'yxatdan o'tish (eski Firebase usuli — saqlab qolindi)
  * POST /api/auth/google
  */
 const googleAuth = async (req, res) => {
@@ -67,6 +67,56 @@ const googleAuth = async (req, res) => {
 };
 
 /**
+ * Google OAuth 2.0 Callback — Passport muvaffaqiyatli autorizatsiya qilgandan keyin chaqiriladi
+ * GET /api/auth/google/callback
+ *
+ * Bu yerda:
+ *   1. Passport orqali kelgan user obyektidan JWT token yaratamiz
+ *   2. Tokenni URL query parametr sifatida frontendga jo'natamiz
+ *   3. Frontend bu tokenni URL'dan oladi va localStorage'ga saqlaydi
+ */
+const googleOAuthCallback = async (req, res) => {
+  try {
+    const user = req.user; // Passport strategiyasidan keladi
+
+    if (!user) {
+      // Agar foydalanuvchi topilmasa — frontendga xato bilan qaytarish
+      const frontendURL =
+        process.env.FRONTEND_URL || "https://business-copilot.masatov.uz";
+      return res.redirect(`${frontendURL}/login?error=auth_failed`);
+    }
+
+    // JWT token yaratish — frontend buni saqlaydi
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      secret_key,
+      { expiresIn: time },
+    );
+
+    // Foydalanuvchi ma'lumotlarini URL-safe qilib encode qilish
+    const userData = encodeURIComponent(
+      JSON.stringify({
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        photoURL: user.photoURL,
+      }),
+    );
+
+    // Frontend URL'ga token va user ma'lumotlarini query parametr sifatida jo'natish
+    const frontendURL =
+      process.env.FRONTEND_URL || "https://business-copilot.masatov.uz";
+    res.redirect(`${frontendURL}?token=${token}&user=${userData}`);
+  } catch (error) {
+    console.error("❌ Google OAuth callback xatosi:", error);
+    const frontendURL =
+      process.env.FRONTEND_URL || "https://business-copilot.masatov.uz";
+    res.redirect(`${frontendURL}/login?error=server_error`);
+  }
+};
+
+/**
  * Profil olish
  * GET /api/auth/me
  */
@@ -113,4 +163,4 @@ const updateProfile = async (req, res) => {
   }
 };
 
-module.exports = { googleAuth, getProfile, updateProfile };
+module.exports = { googleAuth, googleOAuthCallback, getProfile, updateProfile };

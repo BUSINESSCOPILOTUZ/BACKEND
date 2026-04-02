@@ -14,6 +14,12 @@ const UserSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
+    // Google OAuth orqali kirgan foydalanuvchilar uchun
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true, // null bo'lishi mumkin (demo yoki boshqa usulda kirganlar uchun)
+    },
     firebaseUid: {
       type: String,
       unique: true,
