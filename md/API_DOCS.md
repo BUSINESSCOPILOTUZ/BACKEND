@@ -1,3 +1,44 @@
+<!-- Server ============================ domen uchun frontend uchun yoki admin panel uchun -->
+
+server {
+server_name business-copilot.masatov.uz www.business-copilot.masatov.uz;
+
+    root            /home/biznes_copilot/FRONT/dist;
+
+    index           index.html;
+    try_files $uri /index.html;
+
+
+    location ~* \.(?:manifest|api|appcache|html?|xml|json)$ {
+        expires -1;
+        proxy_set_header    X-Forwarded-For $remote_addr;
+        proxy_set_header    Host $http_host;
+    }
+
+}
+
+<!-- Server ====================== Backend admin panel uchun -->
+
+server {
+
+# listen 80
+
+    listen [::]:80; # managed by Certbot
+    listen 80; # managed by Certbot
+
+    server_name apibusinesscopilot.masatov.uz www.apibusinesscopilot.masatov.uz;
+
+    location / {
+        proxy_pass http://localhost:9006; #whatever port your app runs on
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+}
+
 # BUSINESS COPILOT - Backend API Documentation
 
 ## Base URL

@@ -34,11 +34,14 @@ app.use("/archive", express.static(path.join(__dirname, "public", "archive")));
 app.use("/uploads", express.static(path.join(__dirname, "public", "uploads")));
 
 // CORS sozlamalari
+// Allow local dev origins plus production frontend and api domains
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:5173",
   "http://localhost:5174",
   process.env.FRONTEND_URL,
+  "https://business-copilot.masatov.uz",
+  "https://apibusinesscopilot.masatov.uz",
 ].filter(Boolean);
 
 app.use(
